@@ -12,7 +12,7 @@ sys.path.insert(0, venv_root + "/opt/graphite/lib")
 # We're going to use carbon's libs directly to do things
 try:
     from carbon import util
-    from carbon.routers import ConsistentHashingRouter
+    from carbon.routers import ConsistentHashingRouter, AggregatedConsistentHashingRouter
     from carbon.hashing import ConsistentHashRing
 except ImportError as e:
     raise SystemExit("No bueno. Can't import carbon! (" + str(e) + ")")
@@ -20,22 +20,22 @@ except ImportError as e:
 
 class Cluster():
     def __init__(self, config, cluster='main'):
-        # Support multiple versions of carbon, the API changed in 0.10.
-        args = inspect.getargspec(ConsistentHashingRouter.__init__).args
-        if 'replication_factor' in args:
-            r = ConsistentHashingRouter(config.replication_factor(cluster))
-        else:
-            class Settings(object):
-                REPLICATION_FACTOR = config.replication_factor(cluster)
-                DIVERSE_REPLICAS = False
-                ROUTER_HASH_TYPE = None
-            r = ConsistentHashingRouter(Settings())
 
-        # 'hash_type' was added only in carbon 1.0.2 or master
-        args = inspect.getargspec(ConsistentHashRing.__init__).args
-        if 'hash_type' in args:
-            r.ring = ConsistentHashRing(nodes=[],
-                                        hash_type=config.hashing_type(cluster))
+        class Settings(dict):
+            __getattr__ = dict.__getitem__
+            REPLICATION_FACTOR = config.replication_factor(cluster)
+            DIVERSE_REPLICAS = config.diverse_replicas(cluster)
+            ROUTER_HASH_TYPE = config.hashing_type(cluster)
+            def __init__(self):
+                dict.__init__(self)
+        
+        relay_method = config.relay_method(cluster=cluster)
+        if relay_method == "consistent-hashing":
+            r = ConsistentHashingRouter(Settings())
+        elif relay_method == "aggregated-consistent-hashing":
+            settings = Settings()
+            settings["aggregation-rules"] = config.aggregation_rules(cluster)
+            r = AggregatedConsistentHashingRouter(settings)   
 
         self.ring = r
 

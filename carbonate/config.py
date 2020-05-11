@@ -66,3 +66,24 @@ class Config():
             return self.config.get(cluster, 'hashing_type')
         except NoOptionError:
             return hashing_type
+
+    def relay_method(self, cluster='main'):
+        """Return the carbon relay method for a cluster."""
+        if not self.config.has_section(cluster):
+            raise SystemExit("Cluster '%s' not defined in %s"
+                             % (cluster, self.config_file))
+        return self.config.get(cluster, 'relay_method')
+    
+    def aggregation_rules(self, cluster='main'):
+        """Return the carbon aggregation rules for a cluster."""
+        if not self.config.has_section(cluster):
+            raise SystemExit("Cluster '%s' not defined in %s"
+                             % (cluster, self.config_file))
+        return self.config.get(cluster, 'aggregation_rules')
+
+    def diverse_replicas(self, cluster='main'):
+        """Return the carbon diverse replicas for a cluster."""
+        if not self.config.has_section(cluster):
+            raise SystemExit("Cluster '%s' not defined in %s"
+                             % (cluster, self.config_file))
+        return self.config.get(cluster, 'diverse_replicas')
